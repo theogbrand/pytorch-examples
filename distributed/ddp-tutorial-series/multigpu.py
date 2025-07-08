@@ -13,10 +13,10 @@ import os
 def ddp_setup(rank, world_size):
     """
     Args:
-        rank: Unique identifier of each process
+        rank: Unique identifier of each process/GPU
         world_size: Total number of processes
     """
-    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_ADDR"] = "localhost" # master/slave for multinode, localhost is the coordinator machine
     os.environ["MASTER_PORT"] = "12355"
     torch.cuda.set_device(rank)
     init_process_group(backend="nccl", rank=rank, world_size=world_size)
@@ -78,8 +78,8 @@ def prepare_dataloader(dataset: Dataset, batch_size: int):
         dataset,
         batch_size=batch_size,
         pin_memory=True,
-        shuffle=False,
-        sampler=DistributedSampler(dataset)
+        shuffle=False, # sampler handles shuffling
+        sampler=DistributedSampler(dataset) # manages non-overlapping sampling
     )
 
 
@@ -100,5 +100,5 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=32, type=int, help='Input batch size on each device (default: 32)')
     args = parser.parse_args()
 
-    world_size = torch.cuda.device_count()
-    mp.spawn(main, args=(world_size, args.save_every, args.total_epochs, args.batch_size), nprocs=world_size)
+    world_size = torch.cuda.device_count() # Spawn only ONE process per GPU
+    mp.spawn(main, args=(world_size, args.save_every, args.total_epochs, args.batch_size), nprocs=world_size) # Spawn identical processes of main across all GPUs
